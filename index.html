@@ -37,6 +37,7 @@
         display: block;
         width: 100%;
         height: auto;
+        touch-action: none;
       }
       #hud {
         position: absolute;
@@ -154,7 +155,7 @@
       let frame = 0;
       let obstacles = [];
       let invincibleTimer = 0;
-      let bgOffset1 = 0; // clouds (slowest)
+      let bgOffset1 = 0; // sky/moon layer (static)
 
       // Background layers
       const bgSky = new Image();
@@ -174,6 +175,14 @@
         jumping: false,
         gravity: 0.9,
         jumpForce: -14
+      };
+
+      // The thing chasing Jailbird — stays a fixed distance behind, bobs up and down
+      const chaser = {
+        offsetX: 55, // how far behind the player it stays
+        w: 36,
+        h: 36,
+        bobPhase: 0
       };
 
       // Sprite animation setup
@@ -197,6 +206,7 @@
         obstacles = [];
         invincibleTimer = 0;
         bgOffset1 = 0;
+        chaser.bobPhase = 0;
         player.y = groundY - player.h;
         player.vy = 0;
         player.jumping = false;
@@ -280,7 +290,7 @@
         speed = 6 + Math.floor(score / 100) * 0.5;
 
         // parallax background offsets (background moves slower than obstacles)
-        // bgOffset1 (sky/moon layer) stays static — only the chord layer scrolls
+        // bgOffset1 (sky/moon layer) stays static — drawn once, no scroll
 
         // player physics
         player.vy += player.gravity;
@@ -322,6 +332,8 @@
 
         if (invincibleTimer > 0) invincibleTimer--;
 
+        chaser.bobPhase += 0.15;
+
         // advance sprite animation (faster while airborne to sell the jump)
         animTimer++;
         const animSpeed = player.jumping ? 4 : 6;
@@ -339,10 +351,38 @@
         ctx.drawImage(bgSky, 0, 0, W, H);
       }
 
+      function drawChaser() {
+        const bobY = Math.sin(chaser.bobPhase) * 5;
+        const cx = player.x - chaser.offsetX;
+        const cy = groundY - chaser.h + bobY;
+        if (cx < -chaser.w) return; // off-screen, don't bother drawing
+
+        // placeholder shape until a real sprite is supplied — dark, spiky, menacing
+        ctx.fillStyle = "#7a1f3d";
+        ctx.beginPath();
+        ctx.ellipse(
+          cx + chaser.w / 2,
+          cy + chaser.h / 2,
+          chaser.w / 2,
+          chaser.h / 2,
+          0,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+        // simple glowing eyes
+        ctx.fillStyle = "#ffe66d";
+        ctx.beginPath();
+        ctx.arc(cx + chaser.w * 0.35, cy + chaser.h * 0.4, 3, 0, Math.PI * 2);
+        ctx.arc(cx + chaser.w * 0.65, cy + chaser.h * 0.4, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
       function draw() {
         ctx.clearRect(0, 0, W, H);
 
         drawClouds(bgOffset1);
+        drawChaser();
 
         // player (blink if invincible)
         if (invincibleTimer <= 0 || frame % 6 < 3) {
@@ -387,11 +427,14 @@
           jump();
         }
       });
-      canvas.addEventListener("mousedown", jump);
-      canvas.addEventListener("touchstart", (e) => {
-        e.preventDefault();
-        jump();
-      });
+      canvas.addEventListener(
+        "pointerdown",
+        (e) => {
+          e.preventDefault();
+          jump();
+        },
+        { passive: false }
+      );
       startBtn.addEventListener("click", () => {
         if (state === "paused") {
           togglePause();
