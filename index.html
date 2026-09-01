@@ -156,6 +156,7 @@
       let obstacles = [];
       let invincibleTimer = 0;
       let bgOffset1 = 0; // sky/moon layer (static)
+      let framesSinceSpawn = 0;
 
       // Background layers
       const bgSky = new Image();
@@ -206,6 +207,7 @@
         obstacles = [];
         invincibleTimer = 0;
         bgOffset1 = 0;
+        framesSinceSpawn = 0;
         chaser.bobPhase = 0;
         player.y = groundY - player.h;
         player.vy = 0;
@@ -301,9 +303,13 @@
           player.jumping = false;
         }
 
-        // spawn obstacles
-        if (frame % Math.max(50, 90 - Math.floor(score / 20)) === 0) {
+        // spawn obstacles — timer-based so spacing stays consistent even as
+        // difficulty ramps up (avoids two obstacles landing too close together)
+        framesSinceSpawn++;
+        const spawnInterval = Math.max(50, 90 - Math.floor(score / 20));
+        if (framesSinceSpawn >= spawnInterval) {
           spawnObstacle();
+          framesSinceSpawn = 0;
         }
 
         // move obstacles + collision
@@ -427,14 +433,10 @@
           jump();
         }
       });
-      canvas.addEventListener(
-        "pointerdown",
-        (e) => {
-          e.preventDefault();
-          jump();
-        },
-        { passive: false }
-      );
+      canvas.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        jump();
+      }, { passive: false });
       startBtn.addEventListener("click", () => {
         if (state === "paused") {
           togglePause();
