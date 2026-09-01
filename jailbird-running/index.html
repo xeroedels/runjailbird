@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <title>Runner Game</title>
+    <!-- UI language: English -->
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #0f152f;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        font-family: "Courier New", monospace;
+        touch-action: manipulation;
+        user-select: none;
+        padding: 12px;
+      }
+      #gameWrap {
+        position: relative;
+        width: 100%;
+        max-width: 600px;
+      }
+      canvas {
+        background: #0f152f;
+        border: 2px solid #ffe66d;
+        display: block;
+        width: 100%;
+        height: auto;
+        touch-action: none;
+      }
+      #hud {
+        position: absolute;
+        top: 10px;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 16px;
+        font-size: 16px;
+        color: #ffe66d;
+        font-weight: bold;
+      }
+      #hud span {
+        pointer-events: none;
+      }
+      #pauseBtn {
+        pointer-events: auto;
+        background: none;
+        border: 2px solid #ffe66d;
+        color: #ffe66d;
+        border-radius: 4px;
+        font-size: 14px;
+        padding: 2px 10px;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      #pauseBtn:hover {
+        background: #ffe66d;
+        color: #0f152f;
+      }
+      #overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 21, 47, 0.9);
+        text-align: center;
+        color: #ffe66d;
+      }
+      #overlay h1 {
+        font-size: 28px;
+        margin-bottom: 10px;
+      }
+      #overlay p {
+        font-size: 14px;
+        margin-bottom: 16px;
+      }
+      #overlay button {
+        padding: 10px 24px;
+        font-size: 16px;
+        font-family: inherit;
+        font-weight: bold;
+        background: #ffe66d;
+        color: #0f152f;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      #overlay button:hover {
+        background: #fff3b0;
+      }
+      .hidden {
+        display: none !important;
+      }
+      #instructions {
+        margin-top: 10px;
+        font-size: 12px;
+        color: #8a8fa8;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="gameWrap">
+      <canvas id="game" width="600" height="200"></canvas>
+      <div id="hud">
+        <span id="score">Score: 0</span>
+        <button id="pauseBtn">⏸</button>
+        <span id="lives">❤️❤️❤️</span>
+      </div>
+      <div id="overlay">
+        <h1 id="overlayTitle">Run, Jailbird, Run</h1>
+        <p id="overlayText">Press SPACE, click, or tap to jump</p>
+        <button id="startBtn">Start</button>
+      </div>
+    </div>
+    <div id="instructions">Space / Click / Tap = Jump</div>
+
+    <script>
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const W = canvas.width,
+        H = canvas.height;
+      const groundY = H - 30;
+
+      const scoreEl = document.getElementById("score");
+      const livesEl = document.getElementById("lives");
+      const overlay = document.getElementById("overlay");
+      const overlayTitle = document.getElementById("overlayTitle");
+      const overlayText = document.getElementById("overlayText");
+      const startBtn = document.getElementById("startBtn");
+      const pauseBtn = document.getElementById("pauseBtn");
+
+      let state = "ready"; // ready | playing | paused | gameover
+      let previousState = null;
+      let score = 0;
+      let lives = 3;
+      let speed = 6;
+      let frame = 0;
+      let obstacles = [];
+      let invincibleTimer = 0;
+      let bgOffset1 = 0; // sky/moon layer (static)
+
+      // Background layers
+      const bgSky = new Image();
+      bgSky.src = "images/bgsky.png";
+      let bgSkyLoaded = false;
+      bgSky.onload = () => {
+        bgSkyLoaded = true;
+      };
+
+      const player = {
+        x: 50,
+        y: groundY - 40,
+        w: 40,
+        h: 40,
+        vy: 0,
+        jumping: false,
+        gravity: 0.9,
+        jumpForce: -14
+      };
+
+      // The thing chasing Jailbird — stays a fixed distance behind, bobs up and down
+      const chaser = {
+        offsetX: 55, // how far behind the player it stays
+        w: 36,
+        h: 36,
+        bobPhase: 0
+      };
+
+      // Sprite animation setup
+      const spriteSheet = new Image();
+      spriteSheet.src = "images/jailbirdjumping.png";
+      const FRAME_COUNT = 5;
+      const FRAME_SIZE = 50;
+      let spriteLoaded = false;
+      spriteSheet.onload = () => {
+        spriteLoaded = true;
+      };
+      let animFrame = 0;
+      let animTimer = 0;
+      // Deklarasi (dekat variabel sprite lainnya)
+      const bgMusic = new Audio("audio/music.mp3");
+      bgMusic.loop = true;
+      bgMusic.volume = 0.5;
+      function resetGame() {
+        score = 0;
+        lives = 3;
+        speed = 6;
+        frame = 0;
+        obstacles = [];
+        invincibleTimer = 0;
+        bgOffset1 = 0;
+        chaser.bobPhase = 0;
+        player.y = groundY - player.h;
+        player.vy = 0;
+        player.jumping = false;
+        updateHUD();
+      }
+
+      function updateHUD() {
+        scoreEl.textContent = "Score: " + Math.floor(score);
+        livesEl.textContent =
+          "❤️".repeat(Math.max(lives, 0)) + "🖤".repeat(3 - Math.max(lives, 0));
+      }
+
+      function jump() {
+        if (state === "ready") {
+          startGame();
+          return;
+        }
+        if (state === "gameover") {
+          startGame();
+          return;
+        }
+        if (state === "paused") return;
+        if (!player.jumping) {
+          player.vy = player.jumpForce;
+          player.jumping = true;
+        }
+      }
+
+      function togglePause() {
+        if (state === "playing") {
+          state = "paused";
+          pauseBtn.textContent = "▶";
+          overlayTitle.textContent = "PAUSED";
+          overlayText.textContent = "Tap resume to keep going";
+          startBtn.textContent = "Resume";
+          overlay.classList.remove("hidden");
+        } else if (state === "paused") {
+          state = "playing";
+          pauseBtn.textContent = "⏸";
+          overlay.classList.add("hidden");
+        }
+      }
+
+      function startGame() {
+        resetGame();
+        state = "playing";
+        overlay.classList.add("hidden");
+      }
+
+      function spawnObstacle() {
+        const h = 20 + Math.random() * 30;
+        obstacles.push({
+          x: W + 10,
+          y: groundY - h,
+          w: 18 + Math.random() * 10,
+          h: h,
+          passed: false
+        });
+      }
+
+      function endGame() {
+        state = "gameover";
+        overlayTitle.textContent = "GAME OVER";
+        overlayText.textContent = "Your score: " + Math.floor(score);
+        startBtn.textContent = "Play Again";
+        overlay.classList.remove("hidden");
+      }
+
+      function rectsCollide(a, b) {
+        return (
+          a.x < b.x + b.w &&
+          a.x + a.w > b.x &&
+          a.y < b.y + b.h &&
+          a.y + a.h > b.y
+        );
+      }
+
+      function update() {
+        frame++;
+        score += 0.15;
+        speed = 6 + Math.floor(score / 100) * 0.5;
+
+        // parallax background offsets (background moves slower than obstacles)
+        // bgOffset1 (sky/moon layer) stays static — drawn once, no scroll
+
+        // player physics
+        player.vy += player.gravity;
+        player.y += player.vy;
+        if (player.y >= groundY - player.h) {
+          player.y = groundY - player.h;
+          player.vy = 0;
+          player.jumping = false;
+        }
+
+        // spawn obstacles
+        if (frame % Math.max(50, 90 - Math.floor(score / 20)) === 0) {
+          spawnObstacle();
+        }
+
+        // move obstacles + collision
+        const hitbox = {
+          x: player.x + 8,
+          y: player.y + 8,
+          w: player.w - 16,
+          h: player.h - 12
+        };
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+          const o = obstacles[i];
+          o.x -= speed;
+
+          if (invincibleTimer <= 0 && rectsCollide(hitbox, o)) {
+            lives--;
+            invincibleTimer = 60;
+            updateHUD();
+            if (lives <= 0) {
+              endGame();
+              return;
+            }
+          }
+
+          if (o.x + o.w < 0) obstacles.splice(i, 1);
+        }
+
+        if (invincibleTimer > 0) invincibleTimer--;
+
+        chaser.bobPhase += 0.15;
+
+        // advance sprite animation (faster while airborne to sell the jump)
+        animTimer++;
+        const animSpeed = player.jumping ? 4 : 6;
+        if (animTimer >= animSpeed) {
+          animTimer = 0;
+          animFrame = (animFrame + 1) % FRAME_COUNT;
+        }
+
+        updateHUD();
+      }
+
+      function drawClouds(offset) {
+        if (!bgSkyLoaded) return;
+        // static background — stretch once to fill the whole canvas, no tiling
+        ctx.drawImage(bgSky, 0, 0, W, H);
+      }
+
+      function drawChaser() {
+        const bobY = Math.sin(chaser.bobPhase) * 5;
+        const cx = player.x - chaser.offsetX;
+        const cy = groundY - chaser.h + bobY;
+        if (cx < -chaser.w) return; // off-screen, don't bother drawing
+
+        // placeholder shape until a real sprite is supplied — dark, spiky, menacing
+        ctx.fillStyle = "#7a1f3d";
+        ctx.beginPath();
+        ctx.ellipse(
+          cx + chaser.w / 2,
+          cy + chaser.h / 2,
+          chaser.w / 2,
+          chaser.h / 2,
+          0,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+        // simple glowing eyes
+        ctx.fillStyle = "#ffe66d";
+        ctx.beginPath();
+        ctx.arc(cx + chaser.w * 0.35, cy + chaser.h * 0.4, 3, 0, Math.PI * 2);
+        ctx.arc(cx + chaser.w * 0.65, cy + chaser.h * 0.4, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+
+        drawClouds(bgOffset1);
+        drawChaser();
+
+        // player (blink if invincible)
+        if (invincibleTimer <= 0 || frame % 6 < 3) {
+          if (spriteLoaded) {
+            ctx.drawImage(
+              spriteSheet,
+              animFrame * FRAME_SIZE,
+              0,
+              FRAME_SIZE,
+              FRAME_SIZE,
+              player.x,
+              player.y,
+              player.w,
+              player.h
+            );
+          } else {
+            // fallback while sprite is loading
+            ctx.fillStyle = "#535353";
+            ctx.fillRect(player.x, player.y, player.w, player.h);
+          }
+        }
+
+        // obstacles
+        ctx.fillStyle = "#ff6b6b";
+        obstacles.forEach((o) => {
+          ctx.fillRect(o.x, o.y, o.w, o.h);
+        });
+      }
+
+      function loop() {
+        if (state === "playing") {
+          update();
+          draw();
+        }
+        requestAnimationFrame(loop);
+      }
+
+      // input
+      document.addEventListener("keydown", (e) => {
+        if (e.code === "Space") {
+          e.preventDefault();
+          jump();
+        }
+      });
+      canvas.addEventListener(
+        "pointerdown",
+        (e) => {
+          e.preventDefault();
+          jump();
+        },
+        { passive: false }
+      );
+      startBtn.addEventListener("click", () => {
+        if (state === "paused") {
+          togglePause();
+        } else {
+          startGame();
+        }
+      });
+      pauseBtn.addEventListener("click", togglePause);
+
+      draw();
+      loop();
+    </script>
+  </body>
+</html>
