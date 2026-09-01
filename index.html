@@ -24,14 +24,19 @@
         font-family: "Courier New", monospace;
         touch-action: manipulation;
         user-select: none;
+        padding: 12px;
       }
       #gameWrap {
         position: relative;
+        width: 100%;
+        max-width: 600px;
       }
       canvas {
         background: #0f152f;
         border: 2px solid #ffe66d;
         display: block;
+        width: 100%;
+        height: auto;
       }
       #hud {
         position: absolute;
@@ -119,7 +124,7 @@
         <span id="lives">❤️❤️❤️</span>
       </div>
       <div id="overlay">
-        <h1 id="overlayTitle">Jailbird Run</h1>
+        <h1 id="overlayTitle">Run, Jailbird, Run</h1>
         <p id="overlayText">Press SPACE, click, or tap to jump</p>
         <button id="startBtn">Start</button>
       </div>
