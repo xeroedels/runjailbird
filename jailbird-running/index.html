@@ -195,7 +195,10 @@
       };
       let animFrame = 0;
       let animTimer = 0;
-
+      // Deklarasi (dekat variabel sprite lainnya)
+const bgMusic = new Audio('audio/music.mp3');
+bgMusic.loop = true;
+bgMusic.volume = 0.5;
       function resetGame() {
         score = 0;
         lives = 3;
