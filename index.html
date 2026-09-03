@@ -212,9 +212,9 @@
 
       // Rosarians const
       const chaser = {
-        offsetX: 55,
-        w: 36,
-        h: 36,
+        offsetX: 90,
+        w: 90,
+        h: 75,
         bobPhase: 0
       };
 
@@ -225,7 +225,8 @@
         chaserSpriteLoaded = true;
       };
       const CHASER_FRAME_COUNT = 10;
-      const CHASER_FRAME_SIZE = 128;
+      const CHASER_FRAME_W = 66;
+      const CHASER_FRAME_H = 46;
       let chaserAnimFrame = 0;
       let chaserAnimTimer = 0;
 
@@ -258,11 +259,6 @@
         activeSkyEvent = null;
         skyEvents.forEach((e) => (e.triggered = false));
         chaser.bobPhase = 0;
-        chaserAnimTimer++;
-        if (chaserAnimTimer >= 6) {
-          chaserAnimTimer = 0;
-          chaserAnimFrame = (chaserAnimFrame + 1) % CHASER_FRAME_COUNT;
-        }
         player.y = groundY - player.h;
         player.vy = 0;
         player.jumping = false;
@@ -413,7 +409,11 @@
         if (invincibleTimer > 0) invincibleTimer--;
 
         chaser.bobPhase += 0.15;
-
+        chaserAnimTimer++;
+        if (chaserAnimTimer >= 7) {
+          chaserAnimTimer = 0;
+          chaserAnimFrame = (chaserAnimFrame + 1) % CHASER_FRAME_COUNT;
+        }
         for (const ev of skyEvents) {
           if (!ev.triggered && score >= ev.threshold) {
             ev.triggered = true;
@@ -526,7 +526,7 @@
       }
 
       function drawChaser() {
-        const bobY = Math.sin(chaser.bobPhase) * 5;
+        const bobY = Math.sin(chaser.bobPhase) * 0;
         const cx = player.x - chaser.offsetX;
         const cy = groundY - chaser.h + bobY;
         if (cx < -chaser.w) return; // off-screen, don't bother drawing
@@ -535,10 +535,10 @@
         if (chaserSpriteLoaded) {
           ctx.drawImage(
             chaserSprite,
-            chaserAnimFrame * CHASER_FRAME_SIZE,
+            chaserAnimFrame * CHASER_FRAME_W,
             0,
-            CHASER_FRAME_SIZE,
-            CHASER_FRAME_SIZE,
+            CHASER_FRAME_W,
+            CHASER_FRAME_H,
             cx,
             cy,
             chaser.w,
