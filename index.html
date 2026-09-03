@@ -258,9 +258,9 @@
         activeSkyEvent = null;
         skyEvents.forEach((e) => (e.triggered = false));
         chaser.bobPhase = 0;
-        chaserAnimTrim++;
-        if (chaserAnimTrim >= 6) {
-          chaserAnimTrim = 0;
+        chaserAnimTimer++;
+        if (chaserAnimTimer >= 6) {
+          chaserAnimTimer = 0;
           chaserAnimFrame = (chaserAnimFrame + 1) % CHASER_FRAME_COUNT;
         }
         player.y = groundY - player.h;
