@@ -6,8 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, user-scalable=no"
     />
-    <title>Runner Game</title>
-    <!-- UI language: English -->
+    <title>Jailbirds, Run!</title>
     <style>
       * {
         margin: 0;
@@ -130,7 +129,9 @@
         <button id="startBtn">Start</button>
       </div>
     </div>
-    <div id="instructions">Space / Click / Tap = Jump (double jump enabled)</div>
+    <div id="instructions">
+      Space / Click / Tap = Jump (double jump are enabled)
+    </div>
 
     <script>
       const canvas = document.getElementById("game");
@@ -147,7 +148,7 @@
       const startBtn = document.getElementById("startBtn");
       const pauseBtn = document.getElementById("pauseBtn");
 
-      let state = "ready"; // ready | playing | paused | gameover
+      let state = "ready"; // ready | playing | paused | gameover <- status from the game
       let previousState = null;
       let score = 0;
       let lives = 3;
@@ -155,17 +156,17 @@
       let frame = 0;
       let obstacles = [];
       let invincibleTimer = 0;
-      let bgOffset1 = 0; // sky/moon layer (static)
+      let bgOffset1 = 0;
       let framesSinceSpawn = 0;
+      let highestScore =
+        Number(localStorage.getItem("jailbirdHighestScore")) || 0;
 
-      // Milestone sky events — a spooky animation appears in the sky once
-      // the score crosses a threshold, plays once, then holds/disappears.
       const skyEvents = [
         { threshold: 1000, type: "eyes1", triggered: false },
         { threshold: 2000, type: "eyes2", triggered: false }
       ];
-      let activeSkyEvent = null; // { type, framesLeft, elapsed }
-      const SKY_EVENT_DURATION = 240; // ~4 seconds at 60fps
+      let activeSkyEvent = null;
+      const SKY_EVENT_DURATION = 240;
 
       // Background layers
       const bgSky = new Image();
@@ -175,10 +176,7 @@
         bgSkyLoaded = true;
       };
 
-      // Eyes 1 — "Nerissa's eyes" — appears once score crosses 1000.
-      // Animated spritesheet: 15 frames, each 300x200, laid out side by side.
-      // Plays through once (blink open->closed->open) then HOLDS on the last
-      // frame for the remainder of the event — it does not loop.
+      // Nerissa's eyes sprite for sky event
       const eyes1Sprite = new Image();
       eyes1Sprite.src = "images/nerissaseyes.png";
       let eyes1Loaded = false;
@@ -188,10 +186,9 @@
       const EYES1_FRAME_COUNT = 15;
       const EYES1_FRAME_W = 300;
       const EYES1_FRAME_H = 200;
-      const EYES1_ANIM_SPEED = 4; // game-frames per sprite-frame (~60 frames to finish once)
+      const EYES1_ANIM_SPEED = 4;
 
-      // Eyes 2 — appears once score crosses 2000. Swap this path once you
-      // have the artwork; placeholder shapes are drawn until it loads.
+      // Second eyes but with a different sprite
       const eyes2Sprite = new Image();
       eyes2Sprite.src = "images/eyes2.png";
       let eyes2Loaded = false;
@@ -199,6 +196,7 @@
         eyes2Loaded = true;
       };
 
+      // Jailbird variable
       const player = {
         x: 50,
         y: groundY - 40,
@@ -209,19 +207,29 @@
         gravity: 0.9,
         jumpForce: -14,
         jumpsUsed: 0,
-        maxJumps: 2 // double jump enabled
+        maxJumps: 2
       };
 
-      // The thing chasing Jailbird — stays a fixed distance behind, bobs up and down
+      // Rosarians const
       const chaser = {
-        offsetX: 55, // how far behind the player it stays
+        offsetX: 55,
         w: 36,
         h: 36,
         bobPhase: 0
       };
 
-      // Sprite animation setup — Jailbird running/jumping spritesheet
-      // (5 frames, 50x50 each, laid out side by side)
+      const chaserSprite = new Image();
+      chaserSprite.src = "images/rosarian.png";
+      let chaserSpriteLoaded = false;
+      chaserSprite.onload = () => {
+        chaserSpriteLoaded = true;
+      };
+      const CHASER_FRAME_COUNT = 10;
+      const CHASER_FRAME_SIZE = 128;
+      let chaserAnimFrame = 0;
+      let chaserAnimTimer = 0;
+
+      // Jailbirds sprite
       const spriteSheet = new Image();
       spriteSheet.src = "images/jailbirdjumping.png";
       const FRAME_COUNT = 5;
@@ -250,6 +258,11 @@
         activeSkyEvent = null;
         skyEvents.forEach((e) => (e.triggered = false));
         chaser.bobPhase = 0;
+        chaserAnimTrim++;
+        if (chaserAnimTrim >= 6) {
+          chaserAnimTrim = 0;
+          chaserAnimFrame = (chaserAnimFrame + 1) % CHASER_FRAME_COUNT;
+        }
         player.y = groundY - player.h;
         player.vy = 0;
         player.jumping = false;
@@ -274,7 +287,6 @@
         }
         if (state === "paused") return;
 
-        // double jump: allow jumping again mid-air, up to maxJumps total
         if (player.jumpsUsed < player.maxJumps) {
           player.vy = player.jumpForce;
           player.jumping = true;
@@ -304,13 +316,10 @@
         state = "playing";
         overlay.classList.add("hidden");
         bgMusic.currentTime = 0;
-        bgMusic.play().catch(() => {}); // ignore if browser blocks autoplay
+        bgMusic.play().catch(() => {});
       }
 
       function spawnObstacle() {
-        // occasionally spawn a "double" — two obstacles close together that
-        // require a double jump to clear in one go, made fair now that
-        // double jump exists
         const isDouble = Math.random() < 0.25;
         const h = 20 + Math.random() * 30;
         const w = 18 + Math.random() * 10;
@@ -318,7 +327,7 @@
         obstacles.push({ x: W + 10, y: groundY - h, w, h, passed: false });
 
         if (isDouble) {
-          const gap = 55 + Math.random() * 15; // gap tuned to be clearable with a double jump
+          const gap = 55 + Math.random() * 15;
           const h2 = 20 + Math.random() * 30;
           const w2 = 18 + Math.random() * 10;
           obstacles.push({
@@ -334,7 +343,14 @@
       function endGame() {
         state = "gameover";
         overlayTitle.textContent = "GAME OVER";
-        overlayText.textContent = "Your score: " + Math.floor(score);
+
+        const finalScore = Math.floor(score);
+        if (finalScore > highestScore) {
+          highestScore = finalScore;
+          localStorage.setItem("jailbirdHighestScore", highestScore);
+        }
+        overlayText.textContent =
+          "Your score: " + finalScore + " · Best: " + highestScore;
         startBtn.textContent = "Play Again";
         overlay.classList.remove("hidden");
         bgMusic.pause();
@@ -354,9 +370,6 @@
         score += 0.15;
         speed = 6 + Math.floor(score / 100) * 0.5;
 
-        // parallax background offsets (background moves slower than obstacles)
-        // bgOffset1 (sky/moon layer) stays static — drawn once, no scroll
-
         // player physics
         player.vy += player.gravity;
         player.y += player.vy;
@@ -364,11 +377,8 @@
           player.y = groundY - player.h;
           player.vy = 0;
           player.jumping = false;
-          player.jumpsUsed = 0; // reset double jump once grounded
+          player.jumpsUsed = 0;
         }
-
-        // spawn obstacles — timer-based so spacing stays consistent even as
-        // difficulty ramps up (avoids two obstacles landing too close together)
         framesSinceSpawn++;
         const spawnInterval = Math.max(65, 105 - Math.floor(score / 20));
         if (framesSinceSpawn >= spawnInterval) {
@@ -376,7 +386,7 @@
           framesSinceSpawn = 0;
         }
 
-        // move obstacles + collision
+        // THORN
         const hitbox = {
           x: player.x + 8,
           y: player.y + 8,
@@ -404,11 +414,14 @@
 
         chaser.bobPhase += 0.15;
 
-        // check for milestone sky events
         for (const ev of skyEvents) {
           if (!ev.triggered && score >= ev.threshold) {
             ev.triggered = true;
-            activeSkyEvent = { type: ev.type, framesLeft: SKY_EVENT_DURATION, elapsed: 0 };
+            activeSkyEvent = {
+              type: ev.type,
+              framesLeft: SKY_EVENT_DURATION,
+              elapsed: 0
+            };
           }
         }
         if (activeSkyEvent) {
@@ -417,7 +430,6 @@
           if (activeSkyEvent.framesLeft <= 0) activeSkyEvent = null;
         }
 
-        // advance sprite animation (faster while airborne to sell the jump)
         animTimer++;
         const animSpeed = player.jumping ? 4 : 6;
         if (animTimer >= animSpeed) {
@@ -430,15 +442,12 @@
 
       function drawClouds(offset) {
         if (!bgSkyLoaded) return;
-        // static background — stretch once to fill the whole canvas, no tiling
         ctx.drawImage(bgSky, 0, 0, W, H);
       }
 
       function drawSkyEvent() {
         if (!activeSkyEvent) return;
 
-        // fade in near the start; fade out only happens if it disappears
-        // (eyes1 holds on its last frame instead of fading, per design)
         const fadeFrames = 20;
         let alpha = 1;
         if (activeSkyEvent.elapsed < fadeFrames) {
@@ -449,8 +458,9 @@
 
         if (activeSkyEvent.type === "eyes1") {
           if (eyes1Loaded) {
-            // play through once, then hold on the last frame — no looping
-            const rawIndex = Math.floor(activeSkyEvent.elapsed / EYES1_ANIM_SPEED);
+            const rawIndex = Math.floor(
+              activeSkyEvent.elapsed / EYES1_ANIM_SPEED
+            );
             const frameIndex = Math.min(rawIndex, EYES1_FRAME_COUNT - 1);
             ctx.drawImage(
               eyes1Sprite,
@@ -464,7 +474,6 @@
               H
             );
           } else {
-            // placeholder fallback while sprite isn't loaded yet
             const blink = Math.sin(frame * 0.1) > -0.85;
             const positions = [
               { x: 90, y: 35 },
@@ -489,7 +498,6 @@
           if (eyes2Loaded) {
             ctx.drawImage(eyes2Sprite, 0, 0, W, H);
           } else {
-            // placeholder fallback while sprite isn't loaded yet
             const blink = Math.sin(frame * 0.15) > -0.85;
             const positions = [
               { x: 60, y: 20 },
@@ -523,25 +531,20 @@
         const cy = groundY - chaser.h + bobY;
         if (cx < -chaser.w) return; // off-screen, don't bother drawing
 
-        // placeholder shape until a real sprite is supplied — dark, spiky, menacing
-        ctx.fillStyle = "#7a1f3d";
-        ctx.beginPath();
-        ctx.ellipse(
-          cx + chaser.w / 2,
-          cy + chaser.h / 2,
-          chaser.w / 2,
-          chaser.h / 2,
-          0,
-          0,
-          Math.PI * 2
-        );
-        ctx.fill();
-        // simple glowing eyes
-        ctx.fillStyle = "#ffe66d";
-        ctx.beginPath();
-        ctx.arc(cx + chaser.w * 0.35, cy + chaser.h * 0.4, 3, 0, Math.PI * 2);
-        ctx.arc(cx + chaser.w * 0.65, cy + chaser.h * 0.4, 3, 0, Math.PI * 2);
-        ctx.fill();
+        // ROSARIAN chasing
+        if (chaserSpriteLoaded) {
+          ctx.drawImage(
+            chaserSprite,
+            chaserAnimFrame * CHASER_FRAME_SIZE,
+            0,
+            CHASER_FRAME_SIZE,
+            CHASER_FRAME_SIZE,
+            cx,
+            cy,
+            chaser.w,
+            chaser.h
+          );
+        }
       }
 
       function draw() {
@@ -551,7 +554,6 @@
         drawSkyEvent();
         drawChaser();
 
-        // player (blink if invincible)
         if (invincibleTimer <= 0 || frame % 6 < 3) {
           if (spriteLoaded) {
             ctx.drawImage(
