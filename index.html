@@ -612,7 +612,7 @@
       }
 
       function drawChaser() {
-        const cx = player.x - chaser.offsetX - 72;
+        const cx = player.x - chaser.offsetX - 30;
         // The GIF has transparent padding below the character in each frame.
         const cy = player.y + player.h - 140 * (85 / 128);
         const visible = cx + 140 > 0 && cx < W;
