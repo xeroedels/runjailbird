@@ -28,7 +28,8 @@
       #gameWrap {
         position: relative;
         width: 100%;
-        max-width: 600px;
+        max-width: 900px;
+        overflow: hidden;
       }
       canvas {
         background: #0f152f;
@@ -38,8 +39,19 @@
         height: auto;
         touch-action: none;
       }
+      #chaserGif {
+        position: absolute;
+        z-index: 1;
+        width: 140px;
+        height: 140px;
+        transform: scale(1.25);
+        transform-origin: bottom left;
+        object-fit: contain;
+        pointer-events: none;
+      }
       #hud {
         position: absolute;
+        z-index: 2;
         top: 10px;
         left: 0;
         right: 0;
@@ -71,6 +83,7 @@
       }
       #overlay {
         position: absolute;
+        z-index: 3;
         top: 0;
         left: 0;
         right: 0;
@@ -118,6 +131,7 @@
   <body>
     <div id="gameWrap">
       <canvas id="game" width="600" height="200"></canvas>
+      <img id="chaserGif" src="images/rosarianchasing.gif" alt="" />
       <div id="hud">
         <span id="score">Score: 0</span>
         <button id="pauseBtn">⏸</button>
@@ -147,6 +161,7 @@
       const overlayText = document.getElementById("overlayText");
       const startBtn = document.getElementById("startBtn");
       const pauseBtn = document.getElementById("pauseBtn");
+      const chaserGif = document.getElementById("chaserGif");
 
       let state = "ready"; // ready | playing | paused | gameover <- status from the game
       let previousState = null;
@@ -263,6 +278,10 @@
         activeSkyEvent = null;
         skyEvents.forEach((e) => (e.triggered = false));
         chaser.bobPhase = 0;
+        chaserAnimFrame = 0;
+        chaserAnimTimer = 0;
+        animFrame = 0;
+        animTimer = 0;
         player.y = groundY - player.h;
         player.vy = 0;
         player.jumping = false;
@@ -572,25 +591,17 @@
       }
 
       function drawChaser() {
-        const bobY = Math.sin(chaser.bobPhase) * 0;
-        const cx = player.x - chaser.offsetX;
-        const cy = groundY - chaser.h + bobY;
-        if (cx < -chaser.w) return; // off-screen, don't bother drawing
+        const cx = player.x - chaser.offsetX - 72;
+        // The GIF has transparent padding below the character in each frame.
+        const cy =
+          player.y + player.h - 140 * (85 / 128);
+        const visible = cx + 140 > 0 && cx < W;
+        chaserGif.style.display = visible ? "block" : "none";
+        if (!visible) return;
 
-        // ROSARIAN chasing
-        if (chaserSpriteLoaded) {
-          ctx.drawImage(
-            chaserSprite,
-            chaserAnimFrame * CHASER_FRAME_W,
-            0,
-            CHASER_FRAME_W,
-            CHASER_FRAME_H,
-            cx,
-            cy,
-            chaser.w,
-            chaser.h
-          );
-        }
+        // Use a native img so the browser advances every GIF frame.
+        chaserGif.style.left = `${(cx / W) * 100}%`;
+        chaserGif.style.top = `${(cy / H) * 100}%`;
       }
 
       function draw() {
