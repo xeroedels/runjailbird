@@ -611,7 +611,7 @@
       }
 
       function drawChaser() {
-        const cx = player.x - chaser.offsetX - 30;
+        const cx = player.x - chaser.offsetX - 55;
         // The GIF has transparent padding below the character in each frame.
         const visible = cx + 140 > 0 && cx < W;
         chaserGif.style.display = visible ? "block" : "none";
@@ -625,7 +625,8 @@
         chaserGif.style.left = `${canvasLeft + cx * canvasScale}px`;
         chaserGif.style.top = `${
           canvasTop +
-          (player.y + player.h) * canvasScale - displaySize * (85 / 128)
+          (player.y + player.h) * canvasScale -
+          displaySize * (85 / 128)
         }px`;
         chaserGif.style.width = `${displaySize}px`;
         chaserGif.style.height = `${displaySize}px`;
