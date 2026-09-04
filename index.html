@@ -599,9 +599,10 @@
         chaserGif.style.display = visible ? "block" : "none";
         if (!visible) return;
 
-        // Use a native img so the browser advances every GIF frame.
-        chaserGif.style.left = `${(cx / W) * 100}%`;
-        chaserGif.style.top = `${(cy / H) * 100}%`;
+        // Use canvas pixels converted to the displayed canvas size.
+        const canvasScale = canvas.clientWidth / W;
+        chaserGif.style.left = `${cx * canvasScale}px`;
+        chaserGif.style.top = `${cy * canvasScale}px`;
       }
 
       function draw() {
