@@ -121,7 +121,7 @@
       <div id="hud">
         <span id="score">Score: 0</span>
         <button id="pauseBtn">⏸</button>
-        <span id="lives">❤️❤️❤️</span>
+        <span id="lives">❤️❤️❤️❤️❤️❤️</span>
       </div>
       <div id="overlay">
         <h1 id="overlayTitle">Run, Jailbird, Run</h1>
@@ -151,7 +151,7 @@
       let state = "ready"; // ready | playing | paused | gameover <- status from the game
       let previousState = null;
       let score = 0;
-      let lives = 3;
+      let lives = 6;
       let speed = 6;
       let frame = 0;
       let obstacles = [];
@@ -160,6 +160,9 @@
       let framesSinceSpawn = 0;
       let highestScore =
         Number(localStorage.getItem("jailbirdHighestScore")) || 0;
+
+      let rollingNovelites = [];
+      const NOVELITES_SIZE = 22;
 
       const skyEvents = [
         { threshold: 1000, type: "eyes1", triggered: false },
@@ -249,13 +252,14 @@
 
       function resetGame() {
         score = 0;
-        lives = 3;
+        lives = 6;
         speed = 6;
         frame = 0;
         obstacles = [];
         invincibleTimer = 0;
         bgOffset1 = 0;
         framesSinceSpawn = 0;
+        rollingNovelites = [];
         activeSkyEvent = null;
         skyEvents.forEach((e) => (e.triggered = false));
         chaser.bobPhase = 0;
@@ -269,7 +273,7 @@
       function updateHUD() {
         scoreEl.textContent = "Score: " + Math.floor(score);
         livesEl.textContent =
-          "❤️".repeat(Math.max(lives, 0)) + "🖤".repeat(3 - Math.max(lives, 0));
+          "❤️".repeat(Math.max(lives, 0)) + "🖤".repeat(6 - Math.max(lives, 0));
       }
 
       function jump() {
@@ -313,6 +317,14 @@
         overlay.classList.add("hidden");
         bgMusic.currentTime = 0;
         bgMusic.play().catch(() => {});
+      }
+
+      function spawnNovelites() {
+        rollingNovelites.push({
+          x: W + 20,
+          y: groundY - NOVELITES_SIZE,
+          rotation: 0
+        });
       }
 
       function spawnObstacle() {
@@ -410,10 +422,44 @@
 
         chaser.bobPhase += 0.15;
         chaserAnimTimer++;
-        if (chaserAnimTimer >= 7) {
+        if (chaserAnimTimer >= 5) {
           chaserAnimTimer = 0;
           chaserAnimFrame = (chaserAnimFrame + 1) % CHASER_FRAME_COUNT;
         }
+
+        if (score >= 300 && Math.random() < 0.004) {
+          spawnNovelites();
+        }
+
+        const NoveliteHitbox = {
+          x: player.x + 8,
+          y: player.y + 8,
+          w: player.w - 16,
+          h: player.h - 12
+        };
+        for (let i = rollingNovelites.length - 1; i >= 0; i--) {
+          const n = rollingNovelites[i];
+          n.x -= speed * 1.6;
+          n.rotation += 0.3;
+
+          const bBox = {
+            x: n.x - NOVELITES_SIZE / 2,
+            y: n.y - NOVELITES_SIZE / 2,
+            w: NOVELITES_SIZE,
+            h: NOVELITES_SIZE
+          };
+          if (invincibleTimer <= 0 && rectsCollide(NoveliteHitbox, bBox)) {
+            lives--;
+            invincibleTimer = 60;
+            updateHUD();
+            if (lives <= 0) {
+              endGame();
+              return;
+            }
+          }
+          if (n.x + NOVELITES_SIZE < 0) rollingNovelites.splice(i, 1);
+        }
+
         for (const ev of skyEvents) {
           if (!ev.triggered && score >= ev.threshold) {
             ev.triggered = true;
@@ -574,6 +620,23 @@
           }
         }
 
+        // NOVELITES
+        rollingNovelites.forEach((b) => {
+          ctx.save();
+          ctx.translate(b.x + NOVELITES_SIZE / 2, b.y + NOVELITES_SIZE / 2);
+          ctx.rotate(b.rotation);
+          ctx.fillStyle = "#a855f7";
+          ctx.beginPath();
+          ctx.arc(0, 0, NOVELITES_SIZE / 2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(NOVELITES_SIZE / 2, 0);
+          ctx.stroke();
+          ctx.restore();
+        });
         // obstacles
         ctx.fillStyle = "#ff6b6b";
         obstacles.forEach((o) => {
